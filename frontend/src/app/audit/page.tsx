@@ -16,7 +16,7 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { api, AuditRecord } from "@/services/api";
+import { api } from "@/services/api";
 
 interface AuditRecord {
   id: number;
