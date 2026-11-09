@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Sidebar from "./sidebar";
 import Topbar from "./topbar";
 
@@ -8,10 +9,14 @@ export default function AppShell({
 }) {
   return (
     <div className="app-shell">
-      <Sidebar />
+      <Suspense fallback={<aside className="sidebar" />}>
+        <Sidebar />
+      </Suspense>
 
       <div className="main-area">
-        <Topbar />
+        <Suspense fallback={<header className="topbar" />}>
+          <Topbar />
+        </Suspense>
 
         <main className="page-content">{children}</main>
       </div>

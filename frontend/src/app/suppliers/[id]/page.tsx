@@ -1,10 +1,9 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-
 import {
   ArrowLeft,
   Building2,
@@ -13,6 +12,7 @@ import {
   AlertTriangle,
   Clock,
   RefreshCw,
+  MapPin,
   CalendarDays,
 } from "lucide-react";
 
@@ -42,6 +42,8 @@ const categoryLabels: Record<string, string> = {
   high: "Alto risco",
 };
 
+
+
 function formatDate(value: string | null | undefined) {
   if (!value) return "Não informado";
 
@@ -55,46 +57,35 @@ function statusClass(status: string) {
     return "status-approved";
   }
 
-  if (
-    status === "blocked" ||
-    status === "expired" ||
-    status === "missing"
-  ) {
+  if (status === "blocked" || status === "expired" || status === "missing") {
     return "status-blocked";
   }
 
   return "status-pending";
 }
 
-export default function SupplierDetailsPage() {
+function SupplierDetailsContent() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-
   const supplierId = params.id;
 
-  // Estados da página
   const [supplier, setSupplier] = useState<Supplier | null>(null);
-
   const [evaluation, setEvaluation] =
     useState<SupplierEvaluation | null>(null);
-
   const [history, setHistory] = useState<AuditRecord[]>([]);
 
   const [loading, setLoading] = useState(true);
-  const [runningEvaluation, setRunningEvaluation] = useState(false);
-
   const [error, setError] = useState("");
+  const [runningEvaluation, setRunningEvaluation] = useState(false);
   const [evaluationMessage, setEvaluationMessage] = useState("");
   const [evaluationError, setEvaluationError] = useState("");
 
-  // Carrega os dados do fornecedor
   async function loadDetails() {
     try {
       setLoading(true);
       setError("");
 
       const supplierData = await api.getSupplier(supplierId);
-
       setSupplier(supplierData);
 
       const [evaluationResult, historyResult] =
@@ -116,10 +107,7 @@ export default function SupplierDetailsPage() {
       }
     } catch (err) {
       console.error("Erro ao carregar fornecedor:", err);
-
-      setError(
-        "Não foi possível localizar este fornecedor."
-      );
+      setError("Não foi possível localizar este fornecedor.");
     } finally {
       setLoading(false);
     }
@@ -131,41 +119,6 @@ export default function SupplierDetailsPage() {
     }
   }, [supplierId]);
 
-  // Executa uma nova avaliação
-  async function handleRunEvaluation() {
-    try {
-      setRunningEvaluation(true);
-      setEvaluationMessage("");
-      setEvaluationError("");
-
-      const result = await api.runEvaluation(supplierId);
-
-      setEvaluation(result);
-
-      // Atualiza os dados e o histórico
-      const [supplierData, historyData] = await Promise.all([
-        api.getSupplier(supplierId),
-        api.getHistory(supplierId),
-      ]);
-
-      setSupplier(supplierData);
-      setHistory(historyData);
-
-      setEvaluationMessage(
-        "Nova avaliação concluída e registrada na auditoria."
-      );
-    } catch (err) {
-      console.error("Erro ao executar homologação:", err);
-
-      setEvaluationError(
-        "Não foi possível executar a avaliação. Verifique a conexão com a API."
-      );
-    } finally {
-      setRunningEvaluation(false);
-    }
-  }
-
-  // Carregamento inicial
   if (loading) {
     return (
       <div className="supplier-feedback">
@@ -174,12 +127,10 @@ export default function SupplierDetailsPage() {
     );
   }
 
-  // Tratamento de erro
   if (error || !supplier) {
     return (
       <div className="card supplier-feedback supplier-error">
         <p>{error || "Fornecedor não encontrado."}</p>
-
         <button
           className="btn"
           onClick={() => router.push("/suppliers")}
@@ -190,10 +141,42 @@ export default function SupplierDetailsPage() {
     );
   }
 
+  async function handleRunEvaluation() {
+  try {
+    setRunningEvaluation(true);
+    setEvaluationMessage("");
+    setEvaluationError("");
+
+    // Executa as regras no backend e registra a auditoria
+    const result = await api.runEvaluation(supplierId);
+
+    setEvaluation(result);
+
+    // Atualiza os dados do fornecedor e o histórico
+    const [supplierData, historyData] = await Promise.all([
+      api.getSupplier(supplierId),
+      api.getHistory(supplierId),
+    ]);
+
+    setSupplier(supplierData);
+    setHistory(historyData);
+
+    setEvaluationMessage(
+      "Nova avaliação concluída e registrada na auditoria."
+    );
+  } catch (err) {
+    console.error("Erro ao executar homologação:", err);
+
+    setEvaluationError(
+      "Não foi possível executar a avaliação. Verifique a conexão com a API."
+    );
+  } finally {
+    setRunningEvaluation(false);
+  }
+}
+
   return (
     <div className="supplier-detail-page">
-
-      {/* Navegação */}
       <div className="detail-back">
         <Link href="/suppliers" className="back-link">
           <ArrowLeft size={16} />
@@ -201,7 +184,6 @@ export default function SupplierDetailsPage() {
         </Link>
       </div>
 
-      {/* Cabeçalho */}
       <div className="page-heading detail-heading">
         <div>
           <h1>{supplier.trade_name}</h1>
@@ -209,22 +191,23 @@ export default function SupplierDetailsPage() {
         </div>
 
         <span
-          className={`status-badge ${statusClass(
-            supplier.homologation_status
-          )}`}
+          className={`status-badge ${
+            supplier.homologation_status === "approved"
+              ? "status-approved"
+              : supplier.homologation_status === "blocked"
+              ? "status-blocked"
+              : "status-pending"
+          }`}
         >
           {statusLabels[supplier.homologation_status]}
         </span>
       </div>
 
-      {/* Indicadores */}
       <div className="detail-metrics">
-
         <div className="card detail-metric">
           <div className="detail-metric-icon blue">
             <Building2 size={20} />
           </div>
-
           <span>CNPJ</span>
           <strong>{supplier.cnpj}</strong>
         </div>
@@ -233,7 +216,6 @@ export default function SupplierDetailsPage() {
           <div className="detail-metric-icon purple">
             <ShieldCheck size={20} />
           </div>
-
           <span>Score de risco</span>
           <strong>{supplier.risk_score}/100</strong>
         </div>
@@ -242,18 +224,12 @@ export default function SupplierDetailsPage() {
           <div className="detail-metric-icon orange">
             <AlertTriangle size={20} />
           </div>
-
           <span>Categoria</span>
-          <strong>
-            {categoryLabels[supplier.category]}
-          </strong>
+          <strong>{categoryLabels[supplier.category]}</strong>
         </div>
-
       </div>
 
-      {/* Dados cadastrais e conformidade */}
       <div className="detail-grid">
-
         <section className="card detail-section">
           <div className="section-title">
             <Building2 size={19} />
@@ -261,7 +237,6 @@ export default function SupplierDetailsPage() {
           </div>
 
           <div className="detail-info-grid">
-
             <div>
               <span>Razão social</span>
               <strong>{supplier.legal_name}</strong>
@@ -288,34 +263,25 @@ export default function SupplierDetailsPage() {
 
             <div>
               <span>Estado</span>
-              <strong>
-                {supplier.state || "Não informado"}
-              </strong>
+              <strong>{supplier.state || "Não informado"}</strong>
             </div>
 
             <div>
               <span>Município</span>
-              <strong>
-                {supplier.city || "Não informado"}
-              </strong>
+              <strong>{supplier.city || "Não informado"}</strong>
             </div>
 
             <div>
               <span>Última revisão</span>
-              <strong>
-                {formatDate(supplier.last_review)}
-              </strong>
+              <strong>{formatDate(supplier.last_review)}</strong>
             </div>
 
             <div>
               <span>Identificação dos dados</span>
               <strong>
-                {supplier.simulated
-                  ? "Simulados"
-                  : "Não simulados"}
+                {supplier.simulated ? "Simulados" : "Não simulados"}
               </strong>
             </div>
-
           </div>
         </section>
 
@@ -326,7 +292,6 @@ export default function SupplierDetailsPage() {
           </div>
 
           <div className="risk-progress">
-
             <div className="risk-progress-header">
               <span>Nível de risco demonstrativo</span>
               <strong>{supplier.risk_score}/100</strong>
@@ -343,69 +308,41 @@ export default function SupplierDetailsPage() {
                 }}
               />
             </div>
-
           </div>
 
           <div className="compliance-list">
-
             <div>
               <span>Sanções ativas</span>
-
-              <strong
-                className={
-                  supplier.active_sanctions
-                    ? "text-danger"
-                    : "text-success"
-                }
-              >
-                {supplier.active_sanctions
-                  ? "Identificadas"
-                  : "Não identificadas"}
+              <strong className={supplier.active_sanctions ? "text-danger" : "text-success"}>
+                {supplier.active_sanctions ? "Identificadas" : "Não identificadas"}
               </strong>
             </div>
 
             <div>
               <span>Restrição trabalhista</span>
-
-              <strong
-                className={
-                  supplier.labor_restriction
-                    ? "text-danger"
-                    : "text-success"
-                }
-              >
-                {supplier.labor_restriction
-                  ? "Identificada"
-                  : "Não identificada"}
+              <strong className={supplier.labor_restriction ? "text-danger" : "text-success"}>
+                {supplier.labor_restriction ? "Identificada" : "Não identificada"}
               </strong>
             </div>
-
           </div>
 
           {supplier.notes.length > 0 && (
             <div className="detail-notes">
               <strong>Observações</strong>
-
               {supplier.notes.map((note, index) => (
                 <p key={index}>{note}</p>
               ))}
             </div>
           )}
         </section>
-
       </div>
 
-      {/* Documentação */}
       <section className="card detail-section">
-
         <div className="section-title">
           <FileText size={19} />
-
           <div>
             <h2>Documentação</h2>
-            <p>
-              Documentos exigidos e situação de validade
-            </p>
+            <p>Documentos exigidos e situação de validade</p>
           </div>
         </div>
 
@@ -415,7 +352,6 @@ export default function SupplierDetailsPage() {
           </div>
         ) : (
           <div className="table-container">
-
             <table className="data-table">
               <thead>
                 <tr>
@@ -429,23 +365,13 @@ export default function SupplierDetailsPage() {
 
               <tbody>
                 {supplier.documents.map((document, index) => (
-                  <tr
-                    key={`${document.document_type}-${index}`}
-                  >
+                  <tr key={`${document.document_type}-${index}`}>
                     <td>
                       <strong>{document.name}</strong>
                     </td>
-
                     <td>{document.issuing_source}</td>
-
-                    <td>
-                      {formatDate(document.issue_date)}
-                    </td>
-
-                    <td>
-                      {formatDate(document.expiration_date)}
-                    </td>
-
+                    <td>{formatDate(document.issue_date)}</td>
+                    <td>{formatDate(document.expiration_date)}</td>
                     <td>
                       <span
                         className={`status-badge ${statusClass(
@@ -460,71 +386,59 @@ export default function SupplierDetailsPage() {
                 ))}
               </tbody>
             </table>
-
           </div>
         )}
       </section>
 
-      {/* Avaliação e execução de nova homologação */}
       <section className="card detail-section">
-
         <div className="section-title">
           <AlertTriangle size={19} />
-
           <div>
             <h2>Resultado da avaliação</h2>
-            <p>
-              Regras e evidências da última análise disponível
-            </p>
+            <p>Regras e evidências da última análise disponível</p>
           </div>
         </div>
 
         <div className="evaluation-action">
+  <div>
+    <strong>Reavaliar fornecedor</strong>
+    <p>
+      Executa novamente as regras de conformidade e registra
+      o resultado no histórico.
+    </p>
+  </div>
 
-          <div>
-            <strong>Reavaliar fornecedor</strong>
+            <button
+                className="btn btn-primary"
+                onClick={handleRunEvaluation}
+                disabled={runningEvaluation}
+            >
+                <RefreshCw
+                size={16}
+                className={runningEvaluation ? "spin-icon" : ""}
+                />
 
-            <p>
-              Executa novamente as regras de conformidade
-              e registra o resultado no histórico.
-            </p>
-          </div>
+                {runningEvaluation
+                ? "Avaliando..."
+                : "Executar nova avaliação"}
+            </button>
+            </div>
 
-          <button
-            className="btn btn-primary"
-            onClick={handleRunEvaluation}
-            disabled={runningEvaluation}
-          >
-            <RefreshCw
-              size={16}
-              className={
-                runningEvaluation ? "spin-icon" : ""
-              }
-            />
+            {evaluationMessage && (
+            <div className="evaluation-feedback success">
+                {evaluationMessage}
+            </div>
+            )}
 
-            {runningEvaluation
-              ? "Avaliando..."
-              : "Executar nova avaliação"}
-          </button>
-
-        </div>
-
-        {evaluationMessage && (
-          <div className="evaluation-feedback success">
-            {evaluationMessage}
-          </div>
-        )}
-
-        {evaluationError && (
-          <div className="evaluation-feedback error">
-            {evaluationError}
-          </div>
-        )}
+            {evaluationError && (
+            <div className="evaluation-feedback error">
+                {evaluationError}
+            </div>
+            )}
 
         {evaluation ? (
           <>
             <div className="evaluation-summary">
-
               <div>
                 <span>Resultado</span>
                 <strong>{evaluation.status}</strong>
@@ -532,25 +446,15 @@ export default function SupplierDetailsPage() {
 
               <div>
                 <span>Pode contratar?</span>
-
-                <strong
-                  className={
-                    evaluation.can_contract
-                      ? "text-success"
-                      : "text-danger"
-                  }
-                >
+                <strong className={evaluation.can_contract ? "text-success" : "text-danger"}>
                   {evaluation.can_contract ? "Sim" : "Não"}
                 </strong>
               </div>
 
               <div>
                 <span>Avaliado em</span>
-                <strong>
-                  {formatDate(evaluation.evaluated_at)}
-                </strong>
+                <strong>{formatDate(evaluation.evaluated_at)}</strong>
               </div>
-
             </div>
 
             <p className="evaluation-description">
@@ -559,20 +463,12 @@ export default function SupplierDetailsPage() {
 
             {evaluation.findings.length > 0 ? (
               <div className="findings-list">
-
                 {evaluation.findings.map((finding, index) => (
-                  <div
-                    className="finding-item"
-                    key={`${finding.rule_id}-${index}`}
-                  >
+                  <div className="finding-item" key={`${finding.rule_id}-${index}`}>
                     <div>
                       <strong>{finding.title}</strong>
-
                       <span>{finding.description}</span>
-
-                      <small>
-                        Evidência: {finding.evidence}
-                      </small>
+                      <small>Evidência: {finding.evidence}</small>
                     </div>
 
                     <span
@@ -587,12 +483,9 @@ export default function SupplierDetailsPage() {
                     </span>
                   </div>
                 ))}
-
               </div>
             ) : (
-              <p>
-                Nenhuma pendência identificada na avaliação.
-              </p>
+              <p>Nenhuma pendência identificada na avaliação.</p>
             )}
           </>
         ) : (
@@ -600,20 +493,14 @@ export default function SupplierDetailsPage() {
             Ainda não há avaliação disponível para este fornecedor.
           </div>
         )}
-
       </section>
 
-      {/* Histórico de homologação */}
       <section className="card detail-section">
-
         <div className="section-title">
           <Clock size={19} />
-
           <div>
             <h2>Histórico de homologação</h2>
-            <p>
-              Registro das avaliações realizadas
-            </p>
+            <p>Registro das avaliações realizadas</p>
           </div>
         </div>
 
@@ -623,24 +510,16 @@ export default function SupplierDetailsPage() {
           </div>
         ) : (
           <div className="history-list">
-
             {history.map((record) => (
-              <div
-                className="history-item"
-                key={record.id}
-              >
+              <div className="history-item" key={record.id}>
                 <div className="history-icon">
                   <CalendarDays size={17} />
                 </div>
 
                 <div className="history-content">
                   <strong>{record.status}</strong>
-
                   <span>{record.summary}</span>
-
-                  <small>
-                    {formatDate(record.evaluated_at)}
-                  </small>
+                  <small>{formatDate(record.evaluated_at)}</small>
                 </div>
 
                 <span
@@ -650,37 +529,43 @@ export default function SupplierDetailsPage() {
                       : "status-pending"
                   }`}
                 >
-                  {record.can_contract
-                    ? "Apto"
-                    : "Não apto"}
+                  {record.can_contract ? "Apto" : "Não apto"}
                 </span>
               </div>
             ))}
-
           </div>
         )}
-
       </section>
 
-      {/* Aviso de dados simulados */}
       <div className="simulation-banner">
-        <strong>Ambiente demonstrativo:</strong> todas as
-        informações e evidências apresentadas são simuladas.
-        O score é ilustrativo e não representa uma análise
-        oficial de crédito ou conformidade.
+        <strong>Ambiente demonstrativo:</strong> todas as informações
+        e evidências apresentadas são simuladas. O score é ilustrativo
+        e não representa uma análise oficial de crédito ou conformidade.
       </div>
 
       <div className="detail-footer">
         <button
           className="btn btn-secondary"
           onClick={loadDetails}
-          disabled={loading || runningEvaluation}
+          disabled={loading}
         >
           <RefreshCw size={16} />
           Atualizar informações
         </button>
       </div>
-
     </div>
+  );
+}
+export default function SupplierDetailsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="supplier-feedback">
+          Carregando informações do fornecedor...
+        </div>
+      }
+    >
+      <SupplierDetailsContent />
+    </Suspense>
   );
 }
