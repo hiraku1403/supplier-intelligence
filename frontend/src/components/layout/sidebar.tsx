@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -9,6 +10,7 @@ import {
   ClipboardList,
   Bot,
   ShieldCheck,
+  Store,
 } from "lucide-react";
 
 const navigation = [
@@ -39,6 +41,16 @@ const navigation = [
         name: "Auditoria",
         href: "/audit",
         icon: ClipboardList,
+      },
+    ],
+  },
+  {
+    label: "ÁREA DO FORNECEDOR",
+    items: [
+      {
+        name: "Portal do Fornecedor",
+        href: "/portal-fornecedor",
+        icon: Store,
       },
     ],
   },
