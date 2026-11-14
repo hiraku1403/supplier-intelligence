@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -311,7 +311,7 @@ function DocumentCard({
 }
 
 
-export default function PaymentDetailPage() {
+function PaymentDetailContent() {
   const params = useParams<{ id: string }>();
   const payment = paymentDetails[params.id];
 
@@ -391,6 +391,8 @@ const [previewDocument, setPreviewDocument] = useState<
       completed: isPaid,
     },
   ];
+
+  
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-4 md:p-6 lg:p-8">
@@ -1065,5 +1067,20 @@ const [previewDocument, setPreviewDocument] = useState<
         <p>Registro demonstrativo · Dados fictícios</p>
       </div>
     </div>
+  );
+}
+export default function PaymentDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-sm text-slate-400">
+            Carregando detalhes do pagamento...
+          </div>
+        </div>
+      }
+    >
+      <PaymentDetailContent />
+    </Suspense>
   );
 }
