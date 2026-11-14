@@ -11,6 +11,7 @@ import {
   Bot,
   ShieldCheck,
   Store,
+  Wallet,
 } from "lucide-react";
 
 const navigation = [
@@ -31,6 +32,11 @@ const navigation = [
         name: "Fornecedores",
         href: "/suppliers",
         icon: Building2,
+      },
+      {
+        name: "Gestão de Pagamentos",
+        href: "/pagamentos",
+        icon: Wallet,
       },
       {
         name: "Monitoramento",
@@ -78,7 +84,9 @@ export default function Sidebar() {
 
         <div className="brand-text">
           <div className="brand-name">Supplier Intelligence</div>
-          <div className="brand-subtitle">Supplier Risk Management</div>
+          <div className="brand-subtitle">
+            Supplier Risk Management
+          </div>
         </div>
       </div>
 
@@ -89,6 +97,7 @@ export default function Sidebar() {
 
             {section.items.map((item) => {
               const Icon = item.icon;
+
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/" && pathname.startsWith(item.href));
